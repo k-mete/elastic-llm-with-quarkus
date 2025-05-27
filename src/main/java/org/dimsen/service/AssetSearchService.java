@@ -324,7 +324,7 @@ public class AssetSearchService {
     }
 
     /**
-     * Search for assets based on their issues (open issues, issue count, severity)
+     * Search for assets based on their issues (open issues, issue count, priority)
      */
     public List<AssetSearchDTO> searchByIssues(AssetIssueSearchRequest request) {
         LOG.infof("Starting issue-based search with criteria: %s", request.issueSearchCriteria());
@@ -398,19 +398,18 @@ public class AssetSearchService {
 
         if (criteria.minIssueCount() != null && criteria.minIssueCount() > 0) {
             LOG.debugf("Adding minimum issue count predicate: %d", criteria.minIssueCount());
-            // Use a sub-query to count issues
+            // Use exists() to count issues
             bool.must(f.bool()
-                    .should(f.match()
-                            .field("issues.id")
-                            .matching("*"))
+                    .should(f.exists()
+                            .field("issues"))
                     .minimumShouldMatchNumber(criteria.minIssueCount()));
         }
 
-        if (criteria.minSeverity() != null) {
-            LOG.debugf("Adding minimum severity predicate: %s", criteria.minSeverity());
+        if (criteria.minPriority() != null) {
+            LOG.debugf("Adding minimum priority predicate: %s", criteria.minPriority());
             bool.must(f.range()
-                    .field("issues.severity")
-                    .atLeast(criteria.minSeverity().toString()));
+                    .field("issues.priority")
+                    .atLeast(criteria.minPriority().toString()));
         }
 
         // If we should include resolved issues
@@ -426,30 +425,27 @@ public class AssetSearchService {
             for (int i = 0; i < results.size(); i++) {
                 var asset = results.get(i);
                 
-                // Format context for LLM analysis
-                StringBuilder context = new StringBuilder();
-                context.append("Analyze this IT asset and its issues:\n\n");
-                context.append("Asset Details:\n");
-                context.append("Name: ").append(asset.name()).append("\n");
-                context.append("Brand: ").append(asset.brandName()).append("\n");
-                context.append("Type: ").append(asset.typeName()).append("\n");
-                context.append("Status: ").append(asset.status()).append("\n");
-                
-                // Add issue search context
-                context.append("\nIssue Search Context:\n");
-                var criteria = request.issueSearchCriteria();
-                if (Boolean.TRUE.equals(criteria.hasOpenIssues())) {
-                    context.append("- Has open issues\n");
-                }
-                if (criteria.minIssueCount() != null) {
-                    context.append("- Has at least ").append(criteria.minIssueCount()).append(" issues\n");
-                }
-                if (criteria.minSeverity() != null) {
-                    context.append("- Has issues with severity >= ").append(criteria.minSeverity()).append("\n");
-                }
+                // Simplified context focusing on key details
+                String context = String.format("""
+                    Asset: %s (%s)
+                    Type: %s
+                    Status: %s
+                    Issue Criteria:
+                    - Open Issues: %s
+                    - Min Issues: %s
+                    - Min Priority: %s
+                    """,
+                    asset.name(),
+                    asset.serialNumber(),
+                    asset.typeName(),
+                    asset.status(),
+                    request.issueSearchCriteria().hasOpenIssues(),
+                    request.issueSearchCriteria().minIssueCount(),
+                    request.issueSearchCriteria().minPriority()
+                );
                 
                 // Get LLM analysis
-                String analysis = searchBot.analyzeIssueSearchResults(context.toString());
+                String analysis = searchBot.analyzeIssueSearchResults(context);
                 LOG.debugf("Generated issue commentary for asset %s: %s", asset.name(), analysis);
                 
                 // Create new DTO with the commentary

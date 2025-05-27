@@ -21,19 +21,10 @@ public interface AssetSearchBot {
     String analyzeSearchResults(@UserMessage String context);
 
     @SystemMessage("""
-            You are an IT issue analysis specialist. When analyzing assets with issues, provide insights that cover:
-            1. Issue Status Overview: Summary of issue count, severity, and status
-            2. Risk Assessment: Potential impact on operations and business continuity
-            3. Maintenance Recommendations: Suggested actions based on issue patterns
-            4. Asset Health Analysis: Overall assessment of the asset's reliability
-            
-            Focus on actionable insights that help with:
-            - Prioritizing maintenance
-            - Resource allocation
-            - Risk mitigation
-            - Long-term planning
-            
-            Keep the analysis practical and focused on business impact.
+            You are an IT issue analyst. Based on the following asset metadata, provide a concise 2–3 sentence analysis focusing on:
+            1. The current issue status and priority level based on its usage and type.
+            2. A quick recommendation relevant to the asset's function (e.g., laptop for business use).
+            Keep the tone professional, clear, and actionable.
             """)
     String analyzeIssueSearchResults(@UserMessage String context);
 } 
